@@ -1,0 +1,32 @@
+type ActiveItem @entity {
+  # ID is a type in graphql. and exclaimatory symbol means, it's essential/compulsory
+  id: ID!
+  buyer: Bytes! # Address. 0x0000.... if no one has bought yet
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt # price can be nullable
+}
+
+type ItemListed @entity {
+  id: ID!
+  seller: Bytes! # address
+  nftAddress: Bytes! # address
+  tokenId: BigInt!
+  price: BigInt
+}
+
+type ItemCanceled @entity {
+  id: ID!
+  seller: Bytes! # address
+  nftAddress: Bytes! # address
+  tokenId: BigInt!
+}
+
+type ItemBought @entity {
+  id: ID!
+  buyer: Bytes! # address
+  nftAddress: Bytes! # address
+  tokenId: BigInt!
+  price: BigInt
+}
