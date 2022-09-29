@@ -1,54 +1,136 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { BigInt, Address } from "@graphprotocol/graph-ts";
 import {
+  // changing names for better understanding
+  ItemBought as ItemBoughtEvent,
+  ItemCanceled as ItemCanceledEvent,
+  ItemListed as ItemListedEvent,
+} from "../generated/NftMarketplace/NftMarketplace";
+import {
+  ItemListed,
   ItemBought,
   ItemCanceled,
-  ItemListed,
-} from "../generated/NftMarketplace/NftMarketplace";
-import { ExampleEntity } from "../generated/schema";
+  ActiveItem,
+} from "../generated/schema";
 
-export function handleItemBought(event: ItemBought): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex());
+// REVIEW \\ ItemListedEvent : Just the raw event
+// REVIEW \\ ItemListedtObject : What we save
+// NOTE \\ We have to create a ItemListedtObject from ItemListedEvent.
+// NOTE \\ And In typescript this both are of different types and we're gonna have to import ItemListedtObject from schema.ts (generated file)
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex());
+// SECTION Whenever ItemListed event emits, run this function
+export function handleItemListed(event: ItemListedEvent): void {
+  // TODO \\ Things, we're gonna have to do when this Event fires
+  // 1. Save that event this in our graph
+  // 2. update the ActiveItem
+  // 3. get or create an itemListed object
+  // NOTE \\ Remember that each item needs a unique ID.
 
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0);
+  let itemListed = ItemListed.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+  let activeItem = ActiveItem.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+
+  if (!itemListed) {
+    itemListed = new ItemListed(
+      getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+    );
+  }
+  if (!activeItem) {
+    activeItem = new ActiveItem(
+      getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+    );
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1);
+  itemListed.seller = event.params.seller;
+  activeItem.seller = event.params.seller;
 
-  // Entity fields can be set based on event parameters
-  entity.buyer = event.params.buyer;
-  entity.nftAddress = event.params.nftAddress;
+  itemListed.nftAddress = event.params.nftAddress;
+  activeItem.nftAddress = event.params.nftAddress;
 
-  // Entities can be written to the store with `.save()`
-  entity.save();
+  itemListed.tokenId = event.params.tokenId;
+  activeItem.tokenId = event.params.tokenId;
 
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
+  itemListed.price = event.params.price;
+  activeItem.price = event.params.price;
 
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.getListing(...)
-  // - contract.getProceeds(...)
+  // REVIEW \\ An Empty Address means item is available
+  activeItem.buyer = Address.fromString(
+    "0x0000000000000000000000000000000000000000"
+  );
+
+  itemListed.save();
+  activeItem.save();
+
+  // ANSWER \\ So, this is how we'll update ItemListedtObject and ActiveItem
 }
 
-export function handleItemCanceled(event: ItemCanceled): void {}
+// SECTION Whenever ItemCanceled event emits, run this function
+export function handleItemCanceled(event: ItemCanceledEvent): void {
+  // TODO \\ Things, we're gonna have to do when this Event fires
 
-export function handleItemListed(event: ItemListed): void {}
+  let itemCanceled = ItemCanceled.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+  let activeItem = ActiveItem.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+
+  if (!itemCanceled) {
+    itemCanceled = new ItemCanceled(
+      getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+    );
+  }
+
+  itemCanceled.seller = event.params.seller;
+  itemCanceled.nftAddress = event.params.nftAddress;
+  itemCanceled.tokenId = event.params.tokenId;
+
+  // NOTE \\ this is how we're gonna decide if an Item is still on the marketplace of not / bought or not.
+  // REVIEW \\ An Dead Address means item is not available
+  activeItem!.buyer = Address.fromString(
+    "0x000000000000000000000000000000000000dEaD" // this is known as DEAD address
+  );
+
+  itemCanceled.save();
+  activeItem!.save();
+}
+
+// SECTION Whenever ItemBought event emits, run this function
+export function handleItemBought(event: ItemBoughtEvent): void {
+  // TODO \\ Things, we're gonna have to do when this Event fires
+
+  // Load ItemBought with it's unique ID
+  let itemBought = ItemBought.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+  // NOTE \\ it doesn't matter if Eventhough 'itemBought' and 'activeItem' have the same ID, Since their types are different.
+  let activeItem = ActiveItem.load(
+    getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+  );
+  if (!itemBought) {
+    // if there's no ItemBought then create one and give the ID
+    itemBought = new ItemBought(
+      getIdFromEventParams(event.params.tokenId, event.params.nftAddress)
+    );
+  }
+  itemBought.buyer = event.params.buyer;
+  itemBought.nftAddress = event.params.nftAddress;
+  itemBought.tokenId = event.params.tokenId;
+
+  // SINCE activeItem already have nftAddress and tokenId becoz of ItemListed, we just have to update the buyer in activeitem
+  // (activeItem! = means we must have a activeItem)
+  activeItem!.buyer = event.params.buyer;
+
+  // Now Save it!
+  itemBought.save();
+  activeItem!.save();
+}
+
+// SECTION Function to get a unique ID
+// In Typescript, We're gonna have to define the types of Params
+// :string => its what we want in return
+function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
+  return tokenId.toHexString() + nftAddress.toHexString();
+}
