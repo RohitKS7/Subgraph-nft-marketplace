@@ -62,3 +62,5 @@
    iv) Now finally, Deploy your Subgraph with `graph deploy --studio "Your Subgraph Name"`
 
 10. After Deploying we'll get "hash of IPFS deployed subgraph", "URL where it's deployed" and "Subgraph endpoints" for queries.
+
+11. How to read the data from Subgraph? See this repo:-> `thegraph_nextjs_frontend_for_nft-marketplace`
